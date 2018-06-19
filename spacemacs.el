@@ -1,9 +1,80 @@
 ;; minor (bound-and-true-p yas-minor-mode)
-;; major (derived-mode-p 'json-mode 'emacs-lisp-mode)
+;; major (derived-mode-p 'json-mode 'emacs-lisp-)
 
+;; frame title settings
+(add-to-list 'default-frame-alist '(ns-transparent-titlebar . t))
+(add-to-list 'default-frame-alist '(ns-appearance . dark))
+;; (setq ns-use-proxy-icon nil)
+
+;; (setq frame-title-format
+;;       '((:eval (if (buffer-file-name)
+;;                    (concat (abbreviate-file-name (buffer-file-name)) "; %m")
+;;                  "%b; %m"))))
+
+;; (defun set-frame-title ()
+;;   (let ((kill-ring (replace-regexp-in-string "\n" "___\\\\n___" (substring-no-properties (car kill-ring))))
+;;         (system-clipboard (evil-get-register ?+)))
+;;     (setq frame-title-format
+;;           (concat kill-ring ";   " system-clipboard))))
+
+;; (setq interval 1)
+
+;; (defun run-every-ten-seconds ()
+;;   ;; (message (current-time-string))
+;;   (set-frame-title))
+
+;; (defun start-timer ()
+;;   (setq timer
+;;         (run-at-time (current-time)  interval
+;;                      'run-every-ten-seconds)))
+;; (run-at-time
+;;  (time-add (current-time) (seconds-to-time interval))
+;;  interval 'run-every-ten-seconds)
+
+
+;; general settings
 (setq evil-move-beyond-eol t)
-(setq scroll-margin 7)
+(setq scroll-margin 15)
+
+;; some global strings
 (setq dot-path "/Users/Aleksey/Dropbox/Settings/")
+
+;; separate clipboards
+(setq save-interprogram-paste-before-kill t)
+(setq select-enable-clipboard nil)
+
+(define-key evil-visual-state-map (kbd "s-c") (kbd "\"+y"))
+(define-key evil-insert-state-map  (kbd "s-c") (kbd "\"+y"))
+(define-key evil-insert-state-map  (kbd "s-x") (kbd "\"+d"))
+(define-key evil-normal-state-map  (kbd "s-v") (kbd "\"+p"))
+(define-key evil-insert-state-map  (kbd "s-v") (kbd "+"))
+(define-key evil-ex-completion-map (kbd "s-v") (kbd "+"))
+(define-key evil-ex-search-keymap  (kbd "s-v") (kbd "+"))
+
+;; functions
+(defadvice compile (around split-horizontally activate)
+  (let ((split-width-threshold 0)
+        (split-height-threshold nil))
+    ad-do-it))
+
+(setq split-height-threshold 0)
+(setq split-width-threshold nil)
+
+(defun ak/yank-pop-forwards (arg)
+  (interactive "p")
+  (yank-pop (- arg)))
+
+(defun ak/half-page-down ()
+  (interactive)
+  (next-line 20))
+
+(defun ak/half-page-up ()
+  (interactive)
+  (previous-line 20))
+
+(global-set-key "\M-Y" 'ak/yank-pop-forwards)
+(global-set-key (kbd "<next>") 'ak/half-page-down)
+(global-set-key (kbd "<prior>") 'ak/half-page-up)
 
 (defun latex-build-cmd ()
   (let* ((fnm (file-name-nondirectory (file-name-sans-extension (current-file-name)))))
@@ -14,9 +85,18 @@
      fnm
      ".tex")))
 
+;; (defun latex-build-cmd ()
+;;   (let* ((fnm (file-name-nondirectory (file-name-sans-extension (current-file-name)))))
+;;     (concat
+;;      "texfot pdflatex --jobname="
+;;      fnm
+;;      " -shell-escape -file-line-error --synctex=1 -interaction=nonstopmode \"\\input\" "
+;;      fnm
+;;      ".tex")))
+
 (defun pythontex-build-cmd ()
   (let* ((fnm (file-name-nondirectory (file-name-sans-extension (current-file-name)))))
-    (concat
+     (concat
      "pythontex "
      fnm)))
 
@@ -332,7 +412,9 @@ lines downward first."
                       default-directory
                     (buffer-file-name))))
     (when filename
+      (setq select-enable-clipboard t)
       (kill-new filename)
+      (setq select-enable-clipboard nil)
       (message "Copied buffer file name '%s' to the clipboard." filename)
       filename)))
 
@@ -342,9 +424,17 @@ lines downward first."
                       default-directory
                     (buffer-file-name))))
     (when filename
+      (setq select-enable-clipboard t)
       (kill-new (file-name-directory filename))
+      (setq select-enable-clipboard nil)
       (message "Copied buffer file name '%s' to the clipboard." (file-name-directory filename))
       (file-name-directory filename))))
+
+(defun ns-copy-including-secondary ()
+  (interactive)
+  (call-interactively 'kill-ring-save)
+  (gui-set-selection 'SECONDARY (buffer-substring (point) (mark t)))
+  )
 
 (evil-define-command current-mode ()
   (message "%s" major-mode))
@@ -684,7 +774,7 @@ Otherwise insert space"
         (message "found")
       (message "not found"))))
 
-(setq aking/latex-snippets '("ar" "un" "ot" "ob" "on" "eq" "sq"))
+(setq aking/latex-snippets '("ar" "un" "ob" "on" "sq" "ti" "hi"))
 
 (defun aking/expand (string)
   (let ((len (length string)))
@@ -723,8 +813,9 @@ Otherwise insert space"
              (LaTeX-find-matching-end)
              (newline)
              (yas-expand-snippet (yas-lookup-snippet "ens")))
-    (progn (reindent-then-newline-and-indent)
-           (yas-expand-snippet (yas-lookup-snippet "ens")))))
+    (progn (LaTeX-indent-line)
+      ;; (reindent-then-newline-and-indent)
+      (yas-expand-snippet (yas-lookup-snippet "ens")))))
 
 (defun aking/latex-convert-to-big ()
   (interactive)
@@ -970,13 +1061,15 @@ If BIGWORD is non-nil, move by WORDS."
   ;; (texmathp-compile)
   ;; (add-to-list 'font-latex-math-environments (quote ("xcases")))
   (LaTeX-add-environments
-   '("xcases" LaTeX-env-label)))
+   '("xcases" LaTeX-env-label)
+   '("syseq" LaTeX-env-label)))
 
-(custom-set-variables '(texmathp-tex-commands (append texmathp-tex-commands-default '(("xcases" env-on)))))
+(custom-set-variables '(texmathp-tex-commands (append texmathp-tex-commands-default '(("xcases" env-on)
+                                                                                      ("syseq" env-on)))))
 (custom-set-variables
  '(font-latex-math-environments (quote
                                  ("display" "displaymath" "equation" "eqnarray" "gather" "multline"
-                                  "align" "alignat" "xalignat" "dmath" "xcases")))
+                                  "align" "alignat" "xalignat" "dmath" "xcases" "syseq")))
  '(TeX-insert-braces nil)) ;;Stops putting {} on argumentless commands to "save" whitespace
 
 
@@ -1035,6 +1128,7 @@ If BIGWORD is non-nil, move by WORDS."
   (let* ((cd-cmd (concat "cd " (current-file-dir) "\n"))
          (latex-build-cmd (concat (latex-success-build) "\n"))
          (pythontex-build-cmd (concat (run-on-success-cmd (pythontex-build-cmd)) "\n"))
+         (biber-cmd (concat "biber quat-report\n"))
          (latex-build-2-cmd (concat (run-on-success-cmd (latex-success-build)) "\n")))
     (ignore-errors (evil-window-right 10))
     (term "/usr/local/bin/bash")
@@ -1043,7 +1137,8 @@ If BIGWORD is non-nil, move by WORDS."
     ;; (evil-normal-state)
     (kill-new cd-cmd) (term-paste)
     (kill-new latex-build-cmd) (term-paste)
-    (kill-new pythontex-build-cmd) (term-paste)
+    ;; (kill-new pythontex-build-cmd) (term-paste)
+    (kill-new biber-cmd) (term-paste)
     (kill-new latex-build-2-cmd) (term-paste)
     (ignore-errors (evil-window-left 10)))
 
@@ -1054,6 +1149,34 @@ If BIGWORD is non-nil, move by WORDS."
 (defun ak/term ()
   (interactive)
   (term "/usr/local/bin/bash"))
+
+(evil-define-command ak/generate-makefile ()
+  (let* ((fnm (file-name-nondirectory (file-name-sans-extension (current-file-name))))
+        (make-command (concat "newmake " fnm "\n")))
+    (evil-write-all nil)
+    (ak/term-cd)
+    (kill-new make-command) (term-paste)))
+
+(defun ak/run-cmd-in-term (cmd)
+  (interactive)
+  (kill-new cmd) (term-paste))
+
+(evil-define-command ak/make ()
+  (if (derived-mode-p 'latex-mode)
+      (preview-buffer))
+  (save-selected-window
+    (evil-write-all nil)
+    (ignore-errors (evil-window-right 10))
+    (ak/term)
+    (ak/run-cmd-in-term "gmake\n")))
+
+(evil-define-command ak/compile ()
+  (evil-write-all nil)
+  (ignore-errors
+    (if (derived-mode-p 'latex-mode)
+        (preview-buffer)))
+  (let ((cmd "export max_print_line=1000\ngmake\n"))
+    (compile cmd)))
 
 (defun ak/term-cd ()
   (interactive)
@@ -1130,18 +1253,18 @@ If BIGWORD is non-nil, move by WORDS."
                              )))
           )
 
-(add-hook 'term-mode-hook
-          (lambda ()
-            ;; (define-key my-mode-map (kbd "M-n") nil)
-            (non-term-mode 0)
-            (terminal-mode 1)
-            ;; (define-key evil-insert-state-map (kbd "M-n") nil)
-            ;; (define-key my-mode-map (kbd "M-DEL") '(lambda () (interactive) (term-send-raw-string "\C-w")))
-            ;; (define-key my-mode-map (kbd "C-DEL") '(lambda () (interactive) (term-send-raw-string "\C-u")))
-            ;; (global-set-key [C-M-backspace] '(lambda () (interactive) (term-send-raw-string "\C-u")))
-            ;; (global-set-key [C-backspace] '(lambda () (interactive) (term-send-raw-string "\C-u")))
-            (define-key term-raw-map (kbd "C-r") '(lambda () (interactive) (term-send-raw-string "\C-r")))
-            (define-key term-raw-map (kbd "C-h") 'describe-key)))
+(defun ak/term-map ()
+  (define-key term-raw-map (kbd "C-h") nil)
+  (define-key term-raw-map (kbd "C-x") nil)
+            (define-key term-raw-map (kbd "C-h k") 'describe-key)
+            (define-key term-raw-map (kbd "C-h v") 'describe-variable)
+  )
+
+(defun ak/lispy-mode-hook ()
+  (define-key lispy-mode-map "\M-m" nil))
+
+(add-hook 'lispy-mode-hook 'ak/lispy-mode-hook)
+(add-hook 'term-mode-hook 'ak/term-map)
 
 (add-hook 'modelica-mode-hook
           (lambda ()
